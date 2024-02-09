@@ -18,7 +18,7 @@ jobs:
           toolchain: stable
       - name: docker compose up
         run: |
-          docker compose up -d -f ./docker/mqtt/docker-compose.yaml
+          docker compose -f docker/mqtt/docker-compose.yml up -d
       - name: cargo test
         run: |
           cd meshpulse
