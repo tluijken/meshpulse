@@ -16,10 +16,6 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - uses: actions-rs/cargo@v1
-        name: cargo update
-        with:
-          command: update
       - name: docker compose up
         run: |
           docker compose up -d -f ./docker/mqtt/docker-compose.yaml
