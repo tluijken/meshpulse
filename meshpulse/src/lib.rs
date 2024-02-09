@@ -46,10 +46,8 @@ pub trait Publish {
 ///   message: String,
 /// }
 ///
-/// let sub_result = TestEvent::subscribe({
-///     move |event: TestEvent| {
+/// let sub_result = TestEvent::subscribe(|event| {
 ///         println!("Received event: {:?}", event.message);
-///     }
 ///  });
 ///
 ///  assert_eq!(sub_result.is_ok(), true);
