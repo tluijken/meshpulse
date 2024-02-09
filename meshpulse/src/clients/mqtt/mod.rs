@@ -1,13 +1,14 @@
 use std::error::Error;
+use crate::prelude::Subscription;
 
-pub struct Subscription {
+pub struct MqttSubscription {
     _thread: std::thread::JoinHandle<()>,
     topic: String,
     connection: paho_mqtt::Client,
 }
 
-impl Subscription {
-    pub fn unsubscribe(self) -> Result<(), Box<dyn Error>> {
+impl Subscription for MqttSubscription {
+    fn unsubscribe(self) -> Result<(), Box<dyn Error>> {
         self.connection.unsubscribe(&self.topic).unwrap();
         self.connection.disconnect(None).unwrap();
         Ok(())

@@ -46,7 +46,7 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
 
         impl Subscribe for #struct_name {
             type Event = Self;
-            fn subscribe(mut callback: impl FnMut(Self) -> () + Send + 'static) -> Result<Subscription, Box<dyn Error>> {
+            fn subscribe(mut callback: impl FnMut(Self) -> () + Send + 'static) -> Result<impl Subscription, Box<dyn Error>> {
                 let cli = getClient();
                 // the topic is the name of the struct, use reflection to get it
                 let topic = format!("events/{}", std::any::type_name::<Self>());
@@ -65,7 +65,7 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
                         }
                     }
                 });
-                let sub = Subscription {
+                let sub = MqttSubscription {
                     _thread: thread,
                     connection: cli,
                     topic,
