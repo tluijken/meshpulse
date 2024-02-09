@@ -2,7 +2,18 @@
 name = "meshpulse_derive"
 version = "0.1.0"
 edition = "2021"
-
+license = "MIT"
+readme = "../README.md"
+repository = "https://github.com/tluijken/meshpulse"
+documentation = "https://docs.rs/meshpulse"
+homepage = "https://github.com/tluijken/meshpulse"
+description = """
+This crate provides a derive macro for the meshpulse crate. It allows you to easily implement the `MeshPulse` trait for your own types.
+"""
+keywords = ["MQTT", "AMQP", "gRPC", "HTTP", "communication"]
+categories = [
+    "communication",
+]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
