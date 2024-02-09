@@ -18,6 +18,11 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
             }
         }
         
+        /// creates a new mqtt client and connects to the broker
+        /// # Example:
+        /// ```
+        /// let client = getClient();
+        /// ```
         fn getClient() -> paho_mqtt::Client {
             let options = paho_mqtt::ConnectOptionsBuilder::new()
                 .user_name(get_env_var("MQTT_USERNAME"))

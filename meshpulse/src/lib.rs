@@ -1,3 +1,11 @@
+/// This crate is used to publish and subscribe to events using meshpulse
+/// Meshpulse offerts a couple of clients to publish and subscribe to events such as mqtt, amqp, gRPC and http
+/// Adding meshpulse to your project is as simple as adding the following to your Cargo.toml
+/// ```toml
+/// [dependencies]
+/// meshpulse = { version = "0.1.0", features = ["mqtt"] }
+/// ```
+
 pub mod clients;
 
 /// This trait is used to publish events using meshpulse
