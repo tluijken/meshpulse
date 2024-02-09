@@ -14,6 +14,7 @@ syn = "2.0"
 proc-macro = true
 
 [features]
+default = ["mqtt"]
 mqtt = []
 grpc = []
 amqp = []

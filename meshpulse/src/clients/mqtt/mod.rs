@@ -1,23 +1,5 @@
 use std::error::Error;
 
-pub trait Publish {
-    // publish a message to a topic
-    fn publish(&self) -> Result<(), Box<dyn Error>>;
-}
-
-pub trait Subscribe {
-    // define a subscribe function that takes in a callback, which can be called from a different
-    // thread
-    type Event;
-    fn subscribe(callback: impl FnMut(Self::Event) -> () + Send + 'static) -> Result<Subscription, Box<dyn Error>>;
-}
-
-// prelude
-pub mod prelude {
-    pub use super::Publish;
-    pub use super::Subscribe;
-}
-
 // create a generic subscription struct for type T which can hold the subscription thread alive
 pub struct Subscription {
     _thread: std::thread::JoinHandle<()>,
@@ -41,6 +23,7 @@ mod tests {
     use super::*;
     use serde::{Serialize, Deserialize};
     use meshpulse_derive::Event;
+    use crate::prelude::*;
 
     fn setup_enviroment_variables() {
         std::env::set_var("MQTT_USERNAME", "test");
