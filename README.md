@@ -2,7 +2,7 @@
 
 [![Cargo build and test](https://github.com/tluijken/meshpulse/actions/workflows/CARGO_TEST.yaml/badge.svg)](https://github.com/tluijken/meshpulse/actions/workflows/CARGO_TEST.yaml)
 [![Crates.io](https://img.shields.io/crates/v/peshpulse.svg)](https://crates.io/crates/meshpulse)
-[![Documentation](https://img.shields.io/badge/documentation-1)](https://docs.rs/meshpulse/latest/stellar_rs/index.html)
+[![Documentation](https://img.shields.io/badge/documentation-1)](https://docs.rs/meshpulse/latest/meshpulse/index.html)
 [![GitHub issues](https://img.shields.io/github/issues/tluijken/meshpulse)]()
 [![GitHub stars](https://img.shields.io/github/stars/tluijken/meshpulse)]()
 [![GitHub license](https://img.shields.io/github/license/tluijken/meshpulse)]()
