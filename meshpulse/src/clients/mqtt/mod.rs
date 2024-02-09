@@ -1,6 +1,5 @@
 use std::error::Error;
 
-// create a generic subscription struct for type T which can hold the subscription thread alive
 pub struct Subscription {
     _thread: std::thread::JoinHandle<()>,
     topic: String,
