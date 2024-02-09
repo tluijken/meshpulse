@@ -20,9 +20,9 @@ mod tests {
 
     // create a client that actually connects to a broker
     use super::*;
-    use serde::{Serialize, Deserialize};
-    use meshpulse_derive::Event;
     use crate::prelude::*;
+    use meshpulse_derive::Event;
+    use serde::{Deserialize, Serialize};
 
     fn setup_enviroment_variables() {
         std::env::set_var("MQTT_USERNAME", "test");
@@ -30,7 +30,7 @@ mod tests {
         std::env::set_var("MQTT_HOST", "tcp://localhost:1883");
     }
 
-    #[derive(Serialize,Deserialize, Event)]
+    #[derive(Serialize, Deserialize, Event)]
     struct TestEvent {
         message: String,
     }
@@ -66,7 +66,11 @@ mod tests {
         assert!(sub_result.is_ok(), "Subscription should succeed");
 
         // Simulate event publication
-        TestEvent { message: "World".to_string() }.publish().expect("Event publication failed");
+        TestEvent {
+            message: "World".to_string(),
+        }
+        .publish()
+        .expect("Event publication failed");
 
         // Cleanup: Unsubscribe if necessary and perform assertions
         let unsub_result = sub_result.unwrap().unsubscribe();
