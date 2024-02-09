@@ -73,9 +73,13 @@ fn main() {
     let sub_result = TestEvent::subscribe(|event| {
         println!("Received event: {:?}", event.message);
     });
+    assert_eq!(sub_result.is_ok(), true);
+    // ... do dome logic but keep the subscription alive
+    // when you are done...
+    let unsub_result = sub_result.unwrap().unsubscribe();
+    assert_eq!(unsub_result.is_ok(), true);
 }
 
-assert_eq!(sub_result.is_ok(), true);
 ```
 
 ### Configuration
