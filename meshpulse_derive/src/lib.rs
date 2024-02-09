@@ -1,4 +1,4 @@
-extern crate proc_macro;
+extern crate proc_macro2;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
@@ -33,7 +33,7 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
         }
 
         impl Publish for #struct_name {
-            fn publish(&self) -> Result<(), Box<dyn Error>> {
+            fn publish(&self) -> Result<(), Box<dyn std::error::Error>> {
                 // the topic is the name of the struct, use reflection to get it
                 let topic = format!("events/{}", std::any::type_name::<Self>());
                 let payload = serde_json::to_string(&self).unwrap();
@@ -46,7 +46,7 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
 
         impl Subscribe for #struct_name {
             type Event = Self;
-            fn subscribe(mut callback: impl FnMut(Self) -> () + Send + 'static) -> Result<impl Subscription, Box<dyn Error>> {
+            fn subscribe(mut callback: impl FnMut(Self) -> () + Send + 'static) -> Result<impl Subscription, Box<dyn std::error::Error>> {
                 let cli = getClient();
                 // the topic is the name of the struct, use reflection to get it
                 let topic = format!("events/{}", std::any::type_name::<Self>());

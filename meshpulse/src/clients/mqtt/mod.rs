@@ -1,12 +1,14 @@
-use std::error::Error;
 use crate::prelude::Subscription;
+use std::error::Error;
 
+#[cfg(feature = "mqtt")]
 pub struct MqttSubscription {
-    _thread: std::thread::JoinHandle<()>,
-    topic: String,
-    connection: paho_mqtt::Client,
+    pub _thread: std::thread::JoinHandle<()>,
+    pub topic: String,
+    pub connection: paho_mqtt::Client,
 }
 
+#[cfg(feature = "mqtt")]
 impl Subscription for MqttSubscription {
     fn unsubscribe(self) -> Result<(), Box<dyn Error>> {
         self.connection.unsubscribe(&self.topic).unwrap();
@@ -19,11 +21,7 @@ impl Subscription for MqttSubscription {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    // create a client that actually connects to a broker
-    use super::*;
     use crate::prelude::*;
-    use meshpulse_derive::Event;
-    use serde::{Deserialize, Serialize};
 
     fn setup_enviroment_variables() {
         std::env::set_var("MQTT_USERNAME", "test");
@@ -52,7 +50,6 @@ mod tests {
         // Setup: Prepare a shared counter for event reception
         let received = Arc::new(Mutex::new(0));
 
-        // Action: Subscribe to TestEvent and publish an event
         let sub_result = TestEvent::subscribe({
             let received_clone = Arc::clone(&received);
             move |event: TestEvent| {
