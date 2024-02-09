@@ -31,9 +31,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' 
     steps:
     - uses: actions/checkout@v4
-    - name: change directory
-      run : cd meshpulse
     - uses: katyo/publish-crates@v2
       with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           args: --allow-dirty
+          path: ./meshpulse
