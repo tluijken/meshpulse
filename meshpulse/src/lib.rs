@@ -8,6 +8,7 @@
 
 pub mod clients;
 
+
 /// This trait is used to publish events using meshpulse
 /// # Example:
 /// ```
@@ -95,7 +96,15 @@ pub mod prelude {
 
     // re-exports
     pub use meshpulse_derive::Event;
+    pub use crate::clients::mqtt::MQTTCLIENT;
     pub use paho_mqtt;
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;
+}
+
+fn get_env_var(name: &str) -> String {
+    match std::env::var(name) {
+        Ok(val) => val,
+        Err(e) => panic!("{} is not set: {}", name, e),
+    }
 }
