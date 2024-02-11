@@ -16,30 +16,31 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
                 // the topic is the name of the struct, use reflection to get it
                 let topic = format!("events/{}", std::any::type_name::<Self>());
                 let payload = serde_json::to_string(&self).unwrap();
-
+        
                 let msg = paho_mqtt::Message::new(topic, payload , 0);
-                let cli = &mut MQTTCLIENT.lock().unwrap().client;
+                let cli = &MQTTCLIENT.read().unwrap().client;
                 cli.publish(msg).unwrap();
                 Ok(())
             }
         }
-
+        
         impl Subscribe for #struct_name {
             type Event = Self;
             fn subscribe(mut callback: impl FnMut(Self) -> () + Send + 'static) -> Result<impl Subscription, Box<dyn std::error::Error>> {
-                let mut mqtt_client = MQTTCLIENT.lock().unwrap();
+                let mut mqtt_client = MQTTCLIENT.write().unwrap();
+                let topic = format!("events/{}", std::any::type_name::<Self>());
+                mqtt_client.client.subscribe(&topic, 0).unwrap();
                 let sub = MqttSubscription {
-                    topic: format!("events/{}", std::any::type_name::<Self>()),
+                    topic: topic.clone(),
                     id: uuid::Uuid::new_v4()
                 };
-                let topic = mqtt_client.topics.entry(sub.topic.clone()).or_insert(std::collections::HashMap::new());
+                let topic = mqtt_client.topics.entry(sub.topic.clone()).or_insert(std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())));
+                let mut topic = topic.lock().unwrap();
                 topic.insert(sub.id, Box::new(move |payload: String| {
                     let event: Self = serde_json::from_str(&payload).unwrap();
                     callback(event);
                 }));
-                if topic.len() == 1 {
-                    mqtt_client.client.subscribe(&sub.topic, 0).unwrap();
-                }
+        
                 Ok(sub)
             }
         }
