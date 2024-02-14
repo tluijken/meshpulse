@@ -5,9 +5,7 @@
 /// [dependencies]
 /// meshpulse = { version = "0.1.0", features = ["mqtt"] }
 /// ```
-
 pub mod clients;
-
 
 /// This trait is used to publish events using meshpulse
 /// # Example:
@@ -86,17 +84,35 @@ pub trait Subscription {
     fn unsubscribe(self) -> Result<(), Box<dyn std::error::Error>>;
 }
 
+/// This trait is used to make rpc requests using meshpulse
+pub trait RpcRequest {
+    type Response;
+    fn request(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Self::Response, Box<dyn std::error::Error>>> + Send;
+}
+
+/// This trait is used to handle rpc requests using meshpulse
+pub trait RpcRequestHandler<R: RpcRequest> {
+    fn start(&mut self);
+    fn handle_request(request: R) -> Result<R::Response, Box<dyn std::error::Error>>;
+    fn stop(&self);
+}
+
 // prelude
 #[cfg(feature = "mqtt")]
 pub mod prelude {
     pub use super::clients::mqtt::MqttSubscription;
+    pub use super::clients::mqtt::QOS;
     pub use super::Publish;
+    pub use super::RpcRequest;
+    pub use super::RpcRequestHandler;
     pub use super::Subscribe;
     pub use super::Subscription;
 
     // re-exports
-    pub use meshpulse_derive::Event;
     pub use crate::clients::mqtt::MQTTCLIENT;
+    pub use meshpulse_derive::Event;
     pub use paho_mqtt;
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;
