@@ -78,7 +78,6 @@ impl MQTTClient {
                     Some(msg) => {
                         let _payload = msg.payload_str().to_string();
                         let topic = msg.topic().to_string();
-                        println!("Received message: {}", _payload);
 
                         // check if we have any callbacks for this topic
                         let client = MQTTCLIENT.read().unwrap();

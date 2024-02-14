@@ -15,7 +15,7 @@ impl RpcRequest for TestRpcRequest {
     async fn request(&self) -> Result<Self::Response, Box<dyn std::error::Error>> {
         let (tx, mut rx) = mpsc::channel(1);
         // Listen for the response asynchronously
-        let topic = format!("meshpulse/rpc/{}", std::any::type_name::<Self>());
+        let topic = format!("rpc/{}", std::any::type_name::<Self>());
         let response_topic = format!("rpc/reply/{}", uuid::Uuid::new_v4());
         let payload = serde_json::to_string(&self).unwrap();
 
@@ -31,15 +31,11 @@ impl RpcRequest for TestRpcRequest {
             .qos(QOS)
             .finalize();
 
-        println!("Sending message: {:?}", msg.payload_str());
-
         tokio::spawn(async move {
             let sub = MqttSubscription {
                 topic: response_topic.clone(),
                 id: uuid::Uuid::new_v4(),
             };
-
-            println!("Subscribing to response topic: {}", response_topic);
 
             {
                 let mut mqtt_client = MQTTCLIENT.write().unwrap();
@@ -47,7 +43,6 @@ impl RpcRequest for TestRpcRequest {
                     std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
                 );
 
-                println!("Inserting response topic into topics");
                 let mut topic = topic.lock().unwrap();
 
                 // await till we get a response
@@ -59,8 +54,6 @@ impl RpcRequest for TestRpcRequest {
                     }),
                 );
             }
-
-            println!("Publishing to request topic {}", &topic);
             {
                 let cli = &MQTTCLIENT.read().unwrap().client;
                 cli.publish(msg).unwrap();
@@ -68,6 +61,7 @@ impl RpcRequest for TestRpcRequest {
         });
 
         // Timeout for response (optional, but recommended)
+        println!("Waiting for response");
         let timeout = tokio::time::timeout(std::time::Duration::from_secs(30), rx.recv()).await;
         //todo unsubscribe from response topic
         match timeout {
@@ -91,6 +85,10 @@ impl RpcRequestHandler<TestRpcRequest> for TestRpcRequestHandler {
         let request_topic = format!(
             "$share/meshpulse/rpc/{}",
             std::any::type_name::<TestRpcRequest>()
+        );
+        assert_eq!(
+            request_topic,
+            "$share/meshpulse/rpc/meshpulse::clients::mqtt::rpc::TestRpcRequest"
         );
 
         self.subscription = Some(MqttSubscription {
@@ -155,17 +153,13 @@ pub mod tests {
     }
     #[tokio::test]
     async fn test_rpc() {
-        println!("Setting up environment variables");
         setup_enviroment_variables();
 
         let mut handler = TestRpcRequestHandler { subscription: None };
-        println!("Starting handler");
         handler.start();
-        println!("Handler started");
         let request = TestRpcRequest {
             message: "Hello".to_string(),
         };
-        println!("Sending request");
         let response = request.request().await.unwrap();
         assert_eq!(response, "World");
         handler.stop();
