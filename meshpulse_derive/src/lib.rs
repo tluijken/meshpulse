@@ -50,3 +50,78 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
     };
     TokenStream::from(expanded)
 }
+
+#[cfg(feature = "mqtt")]
+#[proc_macro_derive(RpcRequest, attributes(RpcRequest))]
+pub fn rpcrequest_macro(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let struct_name = &input.ident;
+
+    let expanded = quote! {
+
+        impl RpcRequest for #struct_name {
+            type Response = String;
+
+            async fn request(&self) -> Result<Self::Response, Box<dyn std::error::Error>> {
+                let (tx, mut rx) = mpsc::channel(1);
+
+                let payload = serde_json::to_string(&self).unwrap();
+                let request_topic = format!("rpc/{}/{}", uuid::Uuid::new_v4(), std::any::type_name::<Self>());
+                let response_topic = format!("{}/response", request_topic);
+                let sub = MqttSubscription {
+                    topic: response_topic.clone(),
+                    id: uuid::Uuid::new_v4(),
+                };
+                tokio::spawn(async move {
+
+                    let msg = paho_mqtt::MessageBuilder::new()
+                        .topic(&request_topic)
+                        .payload(payload)
+                        .qos(QOS)
+                        .finalize();
+
+                    {
+                        let mut mqtt_client = MQTTCLIENT.write().unwrap();
+                        mqtt_client.client.subscribe(&response_topic, QOS).unwrap();
+                        let topic = &mqtt_client.topics.entry(response_topic.clone()).or_insert(
+                            std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+                            );
+
+                        let mut topic = topic.lock().unwrap();
+
+                        // await till we get a response
+                        topic.insert(
+                            sub.id,
+                            Box::new(move |msg: Message| {
+                                let payload = msg.payload_str().to_string();
+                                tx.try_send(payload).unwrap();
+                            }),
+                            );
+                    }
+                    {
+                        let cli = &MQTTCLIENT.read().unwrap().client;
+                        cli.publish(msg).unwrap_or_else(|e| println!("Failed to publish: {}", e));
+                    }
+                });
+
+                // Timeout for response (optional, but recommended)
+                let timeout = tokio::time::timeout(std::time::Duration::from_secs(30), rx.recv()).await;
+                sub.unsubscribe().unwrap_or_else(|e| println!("Failed to unsubscribe: {}", e));
+                match timeout {
+                    Ok(Some(message)) => {
+
+                        let response: Self::Response = match serde_json::from_str(&message) {
+                            Ok(response) => response,
+                            Err(_) => message
+                        };
+                        Ok(response)
+                    }
+                    Ok(None) => Err("No response received".into()),
+                    Err(_) => Err("Response timeout".into()),
+                }
+            }
+        }
+    };
+    TokenStream::from(expanded)
+}
+
