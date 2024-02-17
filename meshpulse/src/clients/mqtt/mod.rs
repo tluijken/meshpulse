@@ -71,6 +71,7 @@ impl MQTTClient {
             .finalize();
         let client = paho_mqtt::Client::new(opt_opts).unwrap();
         client.connect(options).expect("Failed to connect");
+
         let rx = client.start_consuming();
         let thread = std::thread::spawn(move || {
             for msg in rx.iter() {

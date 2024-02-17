@@ -125,3 +125,96 @@ pub fn rpcrequest_macro(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+#[proc_macro_attribute]
+pub fn request_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input_fn = parse_macro_input!(item as syn::ItemFn);
+    // Iterate over the inputs of the function
+
+    // extract the first argument of the function to extract the response type
+    let request_type_str = match input_fn.sig.inputs.first() {
+        Some(syn::FnArg::Typed(pat_type)) => {
+            match *pat_type.ty {
+                syn::Type::Path(ref type_path) => {
+                    if let Some(last_segment) = type_path.path.segments.last() {
+                        last_segment.ident.to_string()
+                    } else {
+                        panic!("No response type found")
+                    }
+                },
+                _ => panic!("No response type found")
+            }
+        },
+        _ => panic!("No response type found")
+    };
+
+    
+
+   
+    let struct_name_str = format!("{}Handler", request_type_str);
+    let struct_name = syn::Ident::new(&struct_name_str, proc_macro2::Span::call_site());
+    let request_type = syn::Ident::new(&request_type_str, proc_macro2::Span::call_site());
+
+
+    // Here, you would implement the logic to register the function
+    // For simplicity, we're just going to return the function as-is
+  // Return the original function without modifications
+    let output = quote! {
+        struct #struct_name {
+            subscription: Option<MqttSubscription>,
+        }
+
+
+        impl RpcRequestHandler<#request_type> for #struct_name {
+            fn start(&mut self) {
+                let request_topic = format!(
+                    "rpc/+/{}",
+                    std::any::type_name::<#request_type>()
+                    );
+                let shared_topic = format!("$share/meshpulse/{}", request_topic);
+                self.subscription = Some(MqttSubscription {
+                    topic: request_topic.clone(),
+                    id: uuid::Uuid::new_v4(),
+                });
+
+                let mut mqtt_client = MQTTCLIENT.write().unwrap();
+                mqtt_client.client.subscribe(&shared_topic, QOS).unwrap();
+                let topic = mqtt_client
+                    .topics
+                    .entry(request_topic.clone())
+                    .or_insert(std::sync::Arc::new(std::sync::Mutex::new(
+                                std::collections::HashMap::new(),
+                                )));
+                let mut topic = topic.lock().unwrap();
+                topic.insert(
+                    self.subscription.as_ref().unwrap().id,
+                    Box::new(move |msg: Message| {
+                        let payload = msg.payload_str().to_string();
+                        let request: #request_type = serde_json::from_str(&payload).unwrap();
+                        let response = Self::handle_request(request).unwrap();
+                        let response_topic = format!("{}/response", msg.topic());
+                        let response_msg = paho_mqtt::MessageBuilder::new()
+                            .topic(response_topic)
+                            .payload(response)
+                            .qos(2)
+                            .finalize();
+                        let cli = &MQTTCLIENT.read().unwrap().client;
+                        cli.publish(response_msg).unwrap();
+                    }),
+                );
+            }
+            fn handle_request(_request: TestRpcRequest) -> Result<String, Box<dyn std::error::Error>> {
+                Ok("World".to_string())
+            }
+
+            fn stop(&self) {
+                let mqtt_client = MQTTCLIENT.write().unwrap();
+                mqtt_client
+                    .client
+                    .unsubscribe(&self.subscription.as_ref().unwrap().topic)
+                    .unwrap();
+            }
+        }
+    };
+
+    output.into()
+}
