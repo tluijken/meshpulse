@@ -202,9 +202,8 @@ pub fn request_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     }),
                 );
             }
-            fn handle_request(_request: TestRpcRequest) -> Result<String, Box<dyn std::error::Error>> {
-                Ok("World".to_string())
-            }
+
+            #input_fn
 
             fn stop(&self) {
                 let mqtt_client = MQTTCLIENT.write().unwrap();
