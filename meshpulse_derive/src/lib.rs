@@ -191,6 +191,7 @@ pub fn request_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         let payload = msg.payload_str().to_string();
                         let request: #request_type = serde_json::from_str(&payload).unwrap();
                         let response = Self::handle_request(request).unwrap();
+                        let response = serde_json::to_string(&RpcResponse { response }).unwrap();
                         let response_topic = format!("{}/response", msg.topic());
                         let response_msg = paho_mqtt::MessageBuilder::new()
                             .topic(response_topic)

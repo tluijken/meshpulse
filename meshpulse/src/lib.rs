@@ -92,6 +92,11 @@ pub trait RpcRequest {
     ) -> impl std::future::Future<Output = Result<Self::Response, Box<dyn std::error::Error>>> + Send;
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct RpcResponse<T> {
+    pub response: T,
+}
+
 /// This trait is used to handle rpc requests using meshpulse
 pub trait RpcRequestHandler<R: RpcRequest> {
     fn start(&mut self);
@@ -108,6 +113,7 @@ pub mod prelude {
     pub use super::RpcRequest;
     pub use super::RpcRequestHandler;
     pub use super::Subscribe;
+    pub use super::RpcResponse;
     pub use super::Subscription;
 
     // re-exports

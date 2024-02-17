@@ -6,7 +6,7 @@ struct TestRpcRequest {
 }
 
 #[request_handler]
-fn handle_request(request: TestRpcRequest) -> Result<String, Box<dyn std::error::Error>> {
+fn handle_request(_request: TestRpcRequest) -> Result<String, Box<dyn std::error::Error>> {
     Ok("World".to_string())
 }
 
@@ -31,7 +31,7 @@ pub mod tests {
             message: "Hello".to_string(),
         };
         let response = request.request().await.unwrap();
-        assert_eq!(response, "World");
+        assert_eq!(response, serde_json::to_string(&RpcResponse { response: "World".to_string() }).unwrap());
         handler.stop();
     }
 }
