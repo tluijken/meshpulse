@@ -113,6 +113,8 @@ pub mod prelude {
     // re-exports
     pub use crate::clients::mqtt::MQTTCLIENT;
     pub use meshpulse_derive::Event;
+    pub use meshpulse_derive::RpcRequest;
+    pub use meshpulse_derive::request_handler;
     pub use paho_mqtt;
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;

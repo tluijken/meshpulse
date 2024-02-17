@@ -63,7 +63,7 @@ pub fn rpcrequest_macro(input: TokenStream) -> TokenStream {
             type Response = String;
 
             async fn request(&self) -> Result<Self::Response, Box<dyn std::error::Error>> {
-                let (tx, mut rx) = mpsc::channel(1);
+                let (tx, mut rx) = tokio::sync::mpsc::channel(1);
 
                 let payload = serde_json::to_string(&self).unwrap();
                 let request_topic = format!("rpc/{}/{}", uuid::Uuid::new_v4(), std::any::type_name::<Self>());
@@ -92,7 +92,7 @@ pub fn rpcrequest_macro(input: TokenStream) -> TokenStream {
                         // await till we get a response
                         topic.insert(
                             sub.id,
-                            Box::new(move |msg: Message| {
+                            Box::new(move |msg: paho_mqtt::Message| {
                                 let payload = msg.payload_str().to_string();
                                 tx.try_send(payload).unwrap();
                             }),
@@ -187,7 +187,7 @@ pub fn request_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 let mut topic = topic.lock().unwrap();
                 topic.insert(
                     self.subscription.as_ref().unwrap().id,
-                    Box::new(move |msg: Message| {
+                    Box::new(move |msg: paho_mqtt::Message| {
                         let payload = msg.payload_str().to_string();
                         let request: #request_type = serde_json::from_str(&payload).unwrap();
                         let response = Self::handle_request(request).unwrap();
