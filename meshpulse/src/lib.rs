@@ -86,10 +86,11 @@ pub trait Subscription {
 
 /// This trait is used to make rpc requests using meshpulse
 pub trait RpcRequest {
-    type Response;
-    fn request(
+    fn request<TResponse>(
         &self,
-    ) -> impl std::future::Future<Output = Result<Self::Response, Box<dyn std::error::Error>>> + Send;
+    ) -> impl std::future::Future<Output = Result<TResponse, Box<dyn std::error::Error>>> + Send
+    where
+        TResponse: serde::de::DeserializeOwned + 'static;
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -100,7 +101,6 @@ pub struct RpcResponse<T> {
 /// This trait is used to handle rpc requests using meshpulse
 pub trait RpcRequestHandler<R: RpcRequest> {
     fn start(&mut self);
-    fn handle_request(request: R) -> Result<R::Response, Box<dyn std::error::Error>>;
     fn stop(&self);
 }
 
@@ -112,15 +112,14 @@ pub mod prelude {
     pub use super::Publish;
     pub use super::RpcRequest;
     pub use super::RpcRequestHandler;
-    pub use super::Subscribe;
     pub use super::RpcResponse;
+    pub use super::Subscribe;
     pub use super::Subscription;
 
     // re-exports
     pub use crate::clients::mqtt::MQTTCLIENT;
     pub use meshpulse_derive::Event;
     pub use meshpulse_derive::RpcRequest;
-    pub use meshpulse_derive::request_handler;
     pub use paho_mqtt;
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;
