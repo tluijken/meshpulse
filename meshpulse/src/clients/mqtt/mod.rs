@@ -1,15 +1,20 @@
 use crate::prelude::Subscription;
+pub mod rpc;
+pub use rpc::RpcRequestHandler;
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::{Mutex, Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
-use lazy_static::lazy_static;
 use crate::get_env_var;
+use lazy_static::lazy_static;
+use paho_mqtt::Message;
+
+pub const QOS: i32 = 2;
 
 #[cfg(feature = "mqtt")]
 pub struct MqttSubscription {
     pub topic: String,
-    pub id: uuid::Uuid
+    pub id: uuid::Uuid,
 }
 
 #[cfg(feature = "mqtt")]
@@ -26,7 +31,10 @@ impl Subscription for MqttSubscription {
         let mut topic = topic.lock().unwrap();
 
         if !topic.contains_key(&self.id) {
-            println!("No subscription found by id {} for topic {}", self.id, self.topic);
+            println!(
+                "No subscription found by id {} for topic {}",
+                self.id, self.topic
+            );
             return Ok(());
         }
 
@@ -45,7 +53,10 @@ pub struct MQTTClient {
     pub client: paho_mqtt::Client,
     _thread: std::thread::JoinHandle<()>,
     // create a hashmap of topics with a hashmap of callbacks
-    pub topics: HashMap<String, Arc<Mutex<HashMap<uuid::Uuid, Box<dyn FnMut(String) -> () + Send + 'static>>>>>
+    pub topics: HashMap<
+        String,
+        Arc<Mutex<HashMap<uuid::Uuid, Box<dyn FnMut(Message) -> () + Send + 'static>>>>,
+    >,
 }
 
 #[cfg(feature = "mqtt")]
@@ -57,24 +68,34 @@ impl MQTTClient {
             .finalize();
         let opt_opts = paho_mqtt::CreateOptionsBuilder::new()
             .server_uri(get_env_var("MQTT_HOST"))
+            .mqtt_version(paho_mqtt::MQTT_VERSION_5)
             .finalize();
         let client = paho_mqtt::Client::new(opt_opts).unwrap();
         client.connect(options).expect("Failed to connect");
+
         let rx = client.start_consuming();
         let thread = std::thread::spawn(move || {
             for msg in rx.iter() {
                 match msg {
                     Some(msg) => {
-                        let payload = msg.payload_str().to_string();
+                        let _payload = msg.payload_str().to_string();
                         let topic = msg.topic().to_string();
-                        
+                        let topic = match topic.starts_with("rpc/") && !topic.ends_with("/response")
+                        {
+                            true => {
+                                let topic = topic.split("/").collect::<Vec<&str>>();
+                                format!("rpc/+/{}", topic[2])
+                            }
+                            false => topic,
+                        };
+
                         // check if we have any callbacks for this topic
                         let client = MQTTCLIENT.read().unwrap();
                         match client.topics.get(&topic) {
                             Some(topic) => {
                                 let mut lock = topic.lock().unwrap();
                                 for (_, callback) in lock.iter_mut() {
-                                    callback(payload.clone());
+                                    callback(msg.clone());
                                 }
                             }
                             None => {
@@ -125,7 +146,6 @@ mod tests {
         message: String,
     }
 
-
     #[test]
     fn test_publish() {
         setup_enviroment_variables();
@@ -153,7 +173,19 @@ mod tests {
         });
 
         assert!(sub_result.is_ok(), "Subscription should succeed");
-        assert_eq!(MQTTCLIENT.read().unwrap().topics.get(EVENT_TOPIC).unwrap().lock().unwrap().len(), 1, "Expected exactly 1 subscription to be present");
+        assert_eq!(
+            MQTTCLIENT
+                .read()
+                .unwrap()
+                .topics
+                .get(EVENT_TOPIC)
+                .unwrap()
+                .lock()
+                .unwrap()
+                .len(),
+            1,
+            "Expected exactly 1 subscription to be present"
+        );
 
         TestEvent {
             message: "World".to_string(),
@@ -175,7 +207,7 @@ mod tests {
     #[test]
     fn test_double_subscribe() {
         setup_enviroment_variables();
-    
+
         let received_1 = Arc::new(Mutex::new(0));
         let received_2 = Arc::new(Mutex::new(0));
         let sub_result_1 = TestEvent2::subscribe({
@@ -200,7 +232,19 @@ mod tests {
         });
         assert_eq!(sub_result_1.is_ok(), true);
         assert_eq!(sub_result_2.is_ok(), true);
-        assert_eq!(MQTTCLIENT.read().unwrap().topics.get(EVENT2_TOPIC).unwrap().lock().unwrap().len(), 2, "Expected exactly 2 subscriptions to be present");
+        assert_eq!(
+            MQTTCLIENT
+                .read()
+                .unwrap()
+                .topics
+                .get(EVENT2_TOPIC)
+                .unwrap()
+                .lock()
+                .unwrap()
+                .len(),
+            2,
+            "Expected exactly 2 subscriptions to be present"
+        );
         TestEvent2 {
             message: "Double".to_string(),
         }
@@ -210,13 +254,31 @@ mod tests {
         std::thread::sleep(WAIT_DURATION);
         let received_count_1 = *received_1.lock().unwrap();
         let received_count_2 = *received_2.lock().unwrap();
-        assert_eq!(received_count_1, 1, "Expected exactly 1 event to be received");
-        assert_eq!(received_count_2, 1, "Expected exactly 1 event to be received");
+        assert_eq!(
+            received_count_1, 1,
+            "Expected exactly 1 event to be received"
+        );
+        assert_eq!(
+            received_count_2, 1,
+            "Expected exactly 1 event to be received"
+        );
         // unsubscribe the first callback
         let unsub_result = sub_result_1.unwrap().unsubscribe();
         assert_eq!(unsub_result.is_ok(), true);
         // check if one callback was removed
-        assert_eq!(MQTTCLIENT.read().unwrap().topics.get(EVENT2_TOPIC).unwrap().lock().unwrap().len(), 1, "Expected exactly 1 subscription to be present");
+        assert_eq!(
+            MQTTCLIENT
+                .read()
+                .unwrap()
+                .topics
+                .get(EVENT2_TOPIC)
+                .unwrap()
+                .lock()
+                .unwrap()
+                .len(),
+            1,
+            "Expected exactly 1 subscription to be present"
+        );
 
         // publish the event again
         TestEvent2 {
@@ -228,17 +290,35 @@ mod tests {
         std::thread::sleep(WAIT_DURATION);
         let received_count_1 = *received_1.lock().unwrap();
         let received_count_2 = *received_2.lock().unwrap();
-        
+
         // check if the first callback didn't react to the event
-        assert_eq!(received_count_1, 1, "Expected exactly 1 event to be received");
+        assert_eq!(
+            received_count_1, 1,
+            "Expected exactly 1 event to be received"
+        );
 
         // check if the second callback reacted to the event
-        assert_eq!(received_count_2, 2, "Expected exactly 2 event to be received");
+        assert_eq!(
+            received_count_2, 2,
+            "Expected exactly 2 event to be received"
+        );
 
         // unsubscribe the second callback
         let unsub_result = sub_result_2.unwrap().unsubscribe();
         assert_eq!(unsub_result.is_ok(), true);
         // check if the last callback was removed
-        assert_eq!(MQTTCLIENT.read().unwrap().topics.get(EVENT2_TOPIC).unwrap().lock().unwrap().len(), 0, "Expected exactly 0 subscriptions to be present");
+        assert_eq!(
+            MQTTCLIENT
+                .read()
+                .unwrap()
+                .topics
+                .get(EVENT2_TOPIC)
+                .unwrap()
+                .lock()
+                .unwrap()
+                .len(),
+            0,
+            "Expected exactly 0 subscriptions to be present"
+        );
     }
 }
