@@ -1,16 +1,12 @@
 use crate::prelude::*;
 
-#[derive(Serialize, Deserialize, RpcRequest)]
-struct TestRpcRequest {
-    message: String,
-}
-
 struct Handler {
     subscription: MqttSubscription,
 }
 
 impl Handler {
     // start accepts a function that takes a TRequest and returns something that can be serialized
+    #[allow(dead_code)]
     fn start<TRequest, TResponse>(
         handle_fn: fn(TRequest) -> Result<TResponse, Box<dyn std::error::Error>>,
     ) -> Self
@@ -54,8 +50,9 @@ impl Handler {
         Self { subscription }
     }
 
+    #[allow(dead_code)]
     fn stop(&self) {
-        let mut mqtt_client = MQTTCLIENT.write().unwrap();
+        let mqtt_client = MQTTCLIENT.write().unwrap();
         mqtt_client
             .client
             .unsubscribe(&self.subscription.topic)
@@ -63,10 +60,12 @@ impl Handler {
     }
 }
 
-// test
 #[cfg(test)]
 pub mod tests {
     use super::*;
+
+    #[derive(Serialize, Deserialize, RpcRequest)]
+    struct TestRpcRequest(String);
 
     fn setup_enviroment_variables() {
         std::env::set_var("MQTT_USERNAME", "test");
@@ -77,17 +76,34 @@ pub mod tests {
     fn handle_request(_request: TestRpcRequest) -> Result<String, Box<dyn std::error::Error>> {
         Ok("World".to_string())
     }
+
     #[tokio::test]
     async fn test_rpc() {
         setup_enviroment_variables();
-
         let handler = Handler::start(handle_request);
-
-        let request = TestRpcRequest {
-            message: "Hello".to_string(),
-        };
+        let request = TestRpcRequest("Hello".to_string());
         let response = request.request::<String>().await.unwrap();
         assert_eq!(response, "World");
+        handler.stop();
+    }
+
+    // test for a request that returns a different type
+    #[derive(Serialize, Deserialize, RpcRequest)]
+    struct MultiplierRequest(i32);
+
+    fn handle_multiplier_request(
+        request: MultiplierRequest,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        Ok(request.0 * 2)
+    }
+
+    #[tokio::test]
+    async fn test_multiplier_rpc() {
+        setup_enviroment_variables();
+        let handler = Handler::start(handle_multiplier_request);
+        let request = MultiplierRequest(5);
+        let response = request.request::<i32>().await.unwrap();
+        assert_eq!(response, 10);
         handler.stop();
     }
 }
