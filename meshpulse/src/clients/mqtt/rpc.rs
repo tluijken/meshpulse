@@ -1,17 +1,22 @@
 use crate::prelude::*;
 
-struct Handler {
+#[cfg(feature = "mqtt")]
+/// This struct is used to handle rpc requests using mqtt
+/// It is used to start and stop the rpc request handler
+pub struct RpcRequestHandler {
     subscription: MqttSubscription,
 }
 
-impl Handler {
-    // start accepts a function that takes a TRequest and returns something that can be serialized
+/// This struct is used to handle rpc requests using mqtt
+/// It is used to start and stop the rpc request handler
+#[cfg(feature = "mqtt")]
+impl RequestHandler for RpcRequestHandler {
     #[allow(dead_code)]
     fn start<TRequest, TResponse>(
         handle_fn: fn(TRequest) -> Result<TResponse, Box<dyn std::error::Error>>,
     ) -> Self
     where
-        TRequest: RpcRequest + 'static + serde::de::DeserializeOwned,
+        TRequest: RpcRequest + 'static + serde::de::DeserializeOwned + serde::Serialize,
         TResponse: serde::Serialize + 'static,
     {
         let request_topic = format!("rpc/+/{}", std::any::type_name::<TRequest>());
@@ -80,7 +85,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_rpc() {
         setup_enviroment_variables();
-        let handler = Handler::start(handle_request);
+        let handler = RpcRequestHandler::start(handle_request);
         let request = TestRpcRequest("Hello".to_string());
         let response = request.request::<String>().await.unwrap();
         assert_eq!(response, "World");
@@ -89,19 +94,25 @@ pub mod tests {
 
     // test for a request that returns a different type
     #[derive(Serialize, Deserialize, RpcRequest)]
-    struct MultiplierRequest(i32);
+    struct MultiplierRequest {
+        number: i32,
+        multiplier: i32,
+    }
 
     fn handle_multiplier_request(
         request: MultiplierRequest,
     ) -> Result<i32, Box<dyn std::error::Error>> {
-        Ok(request.0 * 2)
+        Ok(request.number * request.multiplier)
     }
 
     #[tokio::test]
     async fn test_multiplier_rpc() {
         setup_enviroment_variables();
-        let handler = Handler::start(handle_multiplier_request);
-        let request = MultiplierRequest(5);
+        let handler = RpcRequestHandler::start(handle_multiplier_request);
+        let request = MultiplierRequest {
+            number: 5,
+            multiplier: 2,
+        };
         let response = request.request::<i32>().await.unwrap();
         assert_eq!(response, 10);
         handler.stop();

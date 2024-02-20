@@ -1,5 +1,6 @@
 use crate::prelude::Subscription;
 pub mod rpc;
+pub use rpc::RpcRequestHandler;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, Mutex, RwLock};

@@ -35,7 +35,7 @@ Cargo.toml file:
 ```toml
 [dependencies]
 # To use with MQTT
-meshpulse = { version = "0.1.0", features = ["mqtt"]}
+meshpulse = { version = "0.2.0", features = ["mqtt"]}
 ```
 
 ## Usage
@@ -78,7 +78,40 @@ fn main() {
     let unsub_result = sub_result.unwrap().unsubscribe();
     assert_eq!(unsub_result.is_ok(), true);
 }
+```
 
+### RPC
+To and execute an RPC request
+```rust
+use meshpulse::prelude::*;
+
+#[derive(Serialize, Deserialize, RpcRequest)]
+struct MultiplierRequest{
+    number: i32,
+    multiplier: i32
+}
+
+async fn main() {
+    let request = MultiplierRequest {
+        number: 5, 
+        multiplier: 2
+    };
+    let response = request.request::<i32>().await.unwrap();
+    assert_eq!(response, 10);
+}
+```
+
+To subscribe to RPC requests and assign a handler function for requests:
+```rust
+use meshpulse::prelude::*;
+
+fn handle_multiplier_request(request: MultiplierRequest) -> Result<i32, Box<dyn std::error::Error>> {
+    Ok(request.number * request.multiplier)
+}
+let handler = RpcRequestHandler::start(handle_multiplier_request);
+// keep the handler alive as long as required.
+// To stop the handler
+handler.stop();
 ```
 
 ### Configuration
