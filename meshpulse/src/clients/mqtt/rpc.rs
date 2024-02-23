@@ -1,6 +1,5 @@
 use crate::prelude::*;
 
-#[cfg(feature = "mqtt")]
 /// This struct is used to handle rpc requests using mqtt
 /// It is used to start and stop the rpc request handler
 pub struct RpcRequestHandler {
@@ -9,7 +8,6 @@ pub struct RpcRequestHandler {
 
 /// This struct is used to handle rpc requests using mqtt
 /// It is used to start and stop the rpc request handler
-#[cfg(feature = "mqtt")]
 impl RequestHandler for RpcRequestHandler {
     #[allow(dead_code)]
     fn start<TRequest, TResponse>(

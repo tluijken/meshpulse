@@ -172,7 +172,7 @@ pub struct RpcResponse<T> {
 // prelude
 #[cfg(feature = "mqtt")]
 pub mod prelude {
-    pub use super::clients::mqtt::MqttSubscription;
+    pub use super::clients::mqtt::subscription::MqttSubscription;
     pub use super::clients::mqtt::RpcRequestHandler;
     pub use super::clients::mqtt::QOS;
     pub use super::Publish;
