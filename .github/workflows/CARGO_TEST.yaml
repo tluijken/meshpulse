@@ -29,7 +29,7 @@ jobs:
       - name: cargo test
         run: |
           mkdir -p ./coverage
-          CARGO_INCREMENTAL=0 RUSTFLAGS='-Cinstrument-coverage' LLVM_PROFILE_FILE='cargo-test-%p-%m.profraw' cargo test -- --test-threads=1 --manifest-path=meshpulse/Cargo.toml
+          CARGO_INCREMENTAL=0 RUSTFLAGS='-Cinstrument-coverage' LLVM_PROFILE_FILE='cargo-test-%p-%m.profraw' cargo test --manifest-path=meshpulse/Cargo.toml -- --test-threads=1
           grcov . --binary-path ./meshpulse/target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o ./coverage/tests.lcov
       - name: Check test coverage
         uses: tluijken/code-coverage-threshold@v1
