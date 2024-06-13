@@ -115,4 +115,40 @@ pub mod tests {
         assert_eq!(response, 10);
         handler.stop();
     }
+
+    #[derive(Serialize, Deserialize)]
+    struct ComplexTypeResponse{
+        response: String,
+    }
+
+    #[derive(Serialize, Deserialize, RpcRequest)]
+    struct ComplexTypeRequest {
+        message: String,
+    }
+
+    impl ComplexTypeResponse {
+        fn new(response: &str) -> Self {
+            Self {
+                response: response.to_string()
+            }
+        }
+    }
+
+    fn handle_complex_type_request(
+        request: ComplexTypeRequest,
+    ) -> Result<ComplexTypeResponse, Box<dyn std::error::Error>> {
+        Ok(ComplexTypeResponse::new(&request.message))
+    }
+
+    #[tokio::test]
+    async fn test_complex_type_rpc() {
+        setup_enviroment_variables();
+        let handler = RpcRequestHandler::start(handle_complex_type_request);
+        let request = ComplexTypeRequest {
+            message: "Hello".to_string(),
+        };
+        let response = request.request::<ComplexTypeResponse>().await.unwrap();
+        assert_eq!(response.response, "Hello");
+        handler.stop();
+    }
 }
