@@ -62,7 +62,7 @@ jobs:
           toolchain: stable
           override: true
     - name: Publish to crates.io
-      run: cargo publish --token ${CRATES_TOKEN} --allow-dirty --manifest-path=meshpulse_derive/Cargo.toml 
-      run: cargo publish --token ${CRATES_TOKEN} --allow-dirty --manifest-path=meshpulse/Cargo.toml 
+      run: cargo publish --token ${CRATES_TOKEN} --allow-dirty --manifest-path=meshpulse_derive/Cargo.toml && \
+           cargo publish --token ${CRATES_TOKEN} --allow-dirty --manifest-path=meshpulse/Cargo.toml 
       env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN  }}
