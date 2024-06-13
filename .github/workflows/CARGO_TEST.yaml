@@ -55,12 +55,14 @@ jobs:
       with:
         useConfigFile: true
     - name: "Overwrite version numbers"
-      run:  awk 'NR==1,/version = "0.1.0"/{sub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")} 1' meshpulse/Cargo.toml > meshpulse/Cargo.tmp && mv meshpulse/Cargo.tmp meshpulse/Cargo.toml
+      run:  awk '{gsub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")}1' meshpulse/Cargo.toml > meshpulse/Cargo.tmp && mv meshpulse/Cargo.tmp meshpulse/Cargo.toml
+      run:  awk '{gsub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")}1' meshpulse_derive/Cargo.toml > meshpulse_derive/Cargo.tmp && mv meshpulse_derive/Cargo.tmp meshpulse_derive/Cargo.toml
     - uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
           override: true
     - name: Publish to crates.io
+      run: cargo publish --token ${CRATES_TOKEN} --allow-dirty --manifest-path=meshpulse_derive/Cargo.toml 
       run: cargo publish --token ${CRATES_TOKEN} --allow-dirty --manifest-path=meshpulse/Cargo.toml 
       env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN  }}

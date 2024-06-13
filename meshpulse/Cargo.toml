@@ -22,7 +22,7 @@ paho-mqtt = {version = "0.12.5", optional = true}
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] , optional = true}
 serde_json = { version = "1.0", optional = true }
-meshpulse_derive = { features = ["mqtt"], path = "../meshpulse_derive" }
+meshpulse_derive = { features = ["mqtt"], path = "../meshpulse_derive", version = "0.1.0" }
 lazy_static = { version = "1.4" }
 uuid = { version = "1.8", optional = true, features = ["v4"] }
 
