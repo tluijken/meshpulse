@@ -55,8 +55,8 @@ jobs:
       with:
         useConfigFile: true
     - name: "Overwrite version numbers"
-      run:  awk '{gsub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")}1' meshpulse/Cargo.toml > meshpulse/Cargo.tmp && mv meshpulse/Cargo.tmp meshpulse/Cargo.toml
-      run:  awk '{gsub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")}1' meshpulse_derive/Cargo.toml > meshpulse_derive/Cargo.tmp && mv meshpulse_derive/Cargo.tmp meshpulse_derive/Cargo.toml
+      run:  awk '{gsub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")}1' meshpulse/Cargo.toml > meshpulse/Cargo.tmp && mv meshpulse/Cargo.tmp meshpulse/Cargo.toml && \
+            awk '{gsub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")}1' meshpulse_derive/Cargo.toml > meshpulse_derive/Cargo.tmp && mv meshpulse_derive/Cargo.tmp meshpulse_derive/Cargo.toml
     - uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
