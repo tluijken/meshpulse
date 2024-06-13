@@ -190,10 +190,3 @@ pub mod prelude {
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;
 }
-
-fn get_env_var(name: &str) -> String {
-    match std::env::var(name) {
-        Ok(val) => val,
-        Err(e) => panic!("{} is not set: {}", name, e),
-    }
-}

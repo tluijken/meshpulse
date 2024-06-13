@@ -1,6 +1,6 @@
 [package]
 name = "meshpulse"
-version = "0.2.0"
+version = "0.1.0"
 edition = "2021"
 license = "MIT"
 readme = "../README.md"
@@ -18,13 +18,13 @@ autobenches = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-paho-mqtt = {version = "0.12.3", optional = true}
+paho-mqtt = {version = "0.12.5", optional = true}
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] , optional = true}
 serde_json = { version = "1.0", optional = true }
-meshpulse_derive = { features = ["mqtt"], version = "0.2.0" }
+meshpulse_derive = { features = ["mqtt"], path = "../meshpulse_derive" }
 lazy_static = { version = "1.4" }
-uuid = { version = "1.7", optional = true, features = ["v4"] }
+uuid = { version = "1.8", optional = true, features = ["v4"] }
 
 [features]
 default = ["mqtt"]

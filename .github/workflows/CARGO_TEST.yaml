@@ -12,16 +12,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: crusty-pie/toolchain@v1
         with:
           toolchain: stable
+          targets: x86_64-unknown-linux-musl
+          override: true
+          components: llvm-tools-preview
       - name: docker compose up
         run: |
           docker compose -f docker/mqtt/docker-compose.yml up -d
+      - name: Download grcov
+        run: |
+          mkdir -p "${HOME}/.local/bin"
+          curl -sL https://github.com/mozilla/grcov/releases/download/v0.8.10/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf - -C "${HOME}/.local/bin"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: cargo test
         run: |
-          cd meshpulse
-          cargo test -- --test-threads=1
+          mkdir -p ./coverage
+          CARGO_INCREMENTAL=0 RUSTFLAGS='-Cinstrument-coverage' LLVM_PROFILE_FILE='cargo-test-%p-%m.profraw' cargo test --manifest-path=meshpulse/Cargo.toml
+          grcov . --binary-path ./meshpulse/target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o ./coverage/tests.lcov
+      - name: Check test coverage
+        uses: tluijken/code-coverage-threshold@v1
+        with:
+          coverage-file: ./coverage/tests.lcov
+          minimum-coverage: 90
 
   publish_to_crates_io:
     name: "Publish to crates.io"
@@ -30,8 +44,24 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.9.7
+      with:
+        versionSpec: '5.x'
+    - name: Determine Version
+      uses: gittools/actions/gitversion/execute@v0.9.7
+      with:
+        useConfigFile: true
+    - name: "Overwrite version numbers"
+      run:  awk 'NR==1,/version = "0.1.0"/{sub(/version = "0.1.0"/, "version = \"'$GitVersion_SemVer'\"")} 1' meshpulse/Cargo.toml > meshpulse/Cargo.tmp && mv meshpulse/Cargo.tmp meshpulse/Cargo.toml
+    - uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+          override: true
     - uses: katyo/publish-crates@v2
       with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           args: --allow-dirty
-          path: ./meshpulse
+          path: meshpulse
