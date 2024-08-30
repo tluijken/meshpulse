@@ -1,12 +1,20 @@
-use std::io::Read;
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use amqprs::{channel::{BasicAckArguments, Channel}, connection::{Connection, OpenConnectionArguments}, consumer::AsyncConsumer, BasicProperties, Deliver};
+use amqprs::{callbacks::{DefaultChannelCallback, DefaultConnectionCallback}, channel::{BasicAckArguments, BasicPublishArguments, Channel}, connection::{Connection, OpenConnectionArguments}, consumer::AsyncConsumer, BasicProperties, Deliver};
 use async_trait;
-use crate::get_env_var;
+use serde::{Deserialize, Serialize};
+use crate::{get_env_var, Publish};
+
+use super::AMQPCLIENT;
 
 #[cfg(feature = "amqp")]
 pub struct AMQPClient {
-    _connection: Connection,
+    connection: Connection,
+    channel: Channel,
+    pub topics: HashMap<
+        String,
+        Arc<Mutex<HashMap<uuid::Uuid, Box<dyn FnMut(dyn AsyncConsumer) -> () + Send + 'static>>>>,
+    >,
 }
 
 #[cfg(feature = "amqp")]
@@ -24,16 +32,53 @@ impl AMQPClient {
             );
 
         let connection = Connection::open(&connecttion_options).await.expect("Failed to connect to AMQP server");
+        connection
+            .register_callback(DefaultConnectionCallback)
+            .await
+            .unwrap();
 
-        let response = Self {
-            _connection: connection,
-        };
 
-        // connection.register_callback(AMQPChannelCallback {
-        //     topics: HashMap::new()
-        // }).await.expect("Failed to register callback");
-        response
+        // open a channel on the connection
+        let channel = connection.open_channel(None).await.unwrap();
+        channel
+            .register_callback(DefaultChannelCallback)
+            .await
+            .unwrap();
 
+        Self {
+            channel,
+            connection,
+            topics: HashMap::new(),
+        }
+    }
+
+    pub async fn disconnect(self) {
+        self.channel.close().await.expect("Failed to close channel");
+        self.connection.close().await.expect("Failed to close connection");
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct TestEvent {
+    message: String,
+}
+
+impl Publish for TestEvent {
+    async fn publish(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // the topic is the name of the struct, use reflection to get it
+        let exchange_name = format!("events.{}", std::any::type_name::<Self>());
+        let routing_key = "meshpulse.events";
+        let payload = serde_json::to_string(&self).unwrap();
+        let channel = &AMQPCLIENT.read().unwrap().channel;
+
+        // create arguments for basic_publish
+        let args = BasicPublishArguments::new(&exchange_name, routing_key);
+
+        channel
+            .basic_publish(BasicProperties::default(), payload.into(), args)
+            .await
+            .unwrap();
+        Ok(())
     }
 }
 
