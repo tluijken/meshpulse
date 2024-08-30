@@ -1,10 +1,12 @@
 use crate::prelude::Subscription;
 
+#[cfg(feature = "mqtt")]
 pub struct MqttSubscription {
     pub topic: String,
     pub id: uuid::Uuid,
 }
 
+#[cfg(feature = "mqtt")]
 impl Subscription for MqttSubscription {
     fn unsubscribe(self) -> Result<(), Box<dyn std::error::Error>> {
         let mqtt_client = super::MQTTCLIENT.read().unwrap();

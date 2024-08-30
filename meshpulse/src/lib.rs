@@ -190,3 +190,33 @@ pub mod prelude {
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;
 }
+
+
+fn get_env_var(key: &str) -> String {
+    match std::env::var(key) {
+        Ok(val) => val,
+        Err(_) => panic!("{} not found in environment", key),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_env_var_success() {
+        std::env::set_var("MQTT_USERNAME", "test");
+        std::env::set_var("MQTT_PASSWORD", "test");
+        std::env::set_var("MQTT_HOST", "tcp://localhost:1883");
+        let mqtt_username = get_env_var("MQTT_USERNAME");
+        assert_eq!(mqtt_username, "test");
+
+    }
+
+    #[test]
+    fn test_get_env_var_failure() {
+        std::env::set_var("MQTT_USERNAME", "test");
+        let result = std::panic::catch_unwind(|| get_env_var("NONE_EXISTING_ENV_VAR"));
+        assert!(result.is_err());
+    }
+}
