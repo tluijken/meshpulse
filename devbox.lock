@@ -1,0 +1,34 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "clippy": {
+      "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#clippy",
+      "source": "nixpkg"
+    },
+    "cmake": {
+      "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#cmake",
+      "source": "nixpkg"
+    },
+    "gcc": {
+      "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#gcc",
+      "source": "nixpkg"
+    },
+    "openssl": {
+      "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#openssl",
+      "source": "nixpkg"
+    },
+    "pkg-config": {
+      "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#pkg-config",
+      "source": "nixpkg"
+    },
+    "rustfmt": {
+      "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#rustfmt",
+      "source": "nixpkg"
+    },
+    "rustup": {
+      "plugin_version": "0.0.1",
+      "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#rustup",
+      "source": "nixpkg"
+    }
+  }
+}
