@@ -1,3 +1,4 @@
+use std::error::Error;
 /// This crate is used to publish and subscribe to events using meshpulse
 /// Meshpulse offerts a couple of clients to publish and subscribe to events such as mqtt, amqp, gRPC and http
 /// Adding meshpulse to your project is as simple as adding the following to your Cargo.toml
@@ -21,14 +22,17 @@ pub mod clients;
 ///    message: String,
 /// }
 ///
-/// let event = TestEvent {
-///   message: "hello".to_string(),
-/// };
-/// let result = event.publish();
-/// assert_eq!(result.is_ok(), true);
+/// async fn example() {
+///     let event = TestEvent {
+///     message: "hello".to_string(),
+///     };
+///     let result = event.publish().await;
+///     assert_eq!(result.is_ok(), true);
+/// }
 /// ```
+#[async_trait::async_trait]
 pub trait Publish {
-    fn publish(&self) -> Result<(), Box<dyn std::error::Error>>;
+    async fn publish(&self) -> Result<(), Box<dyn Error + Send + Sync>>;
 }
 
 /// This trait is used to subscribe to events using meshpulse

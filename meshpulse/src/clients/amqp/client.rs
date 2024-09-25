@@ -1,19 +1,19 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{borrow::BorrowMut, collections::HashMap, sync::{Arc, Mutex}};
 
-use amqprs::{callbacks::{DefaultChannelCallback, DefaultConnectionCallback}, channel::{BasicAckArguments, BasicPublishArguments, Channel}, connection::{Connection, OpenConnectionArguments}, consumer::AsyncConsumer, BasicProperties, Deliver};
+use amqprs::{callbacks::{DefaultChannelCallback, DefaultConnectionCallback}, channel::{BasicAckArguments, BasicConsumeArguments, BasicPublishArguments, Channel, QueueBindArguments, QueueDeclareArguments}, connection::{Connection, OpenConnectionArguments}, consumer::AsyncConsumer, BasicProperties, Deliver};
 use async_trait;
 use serde::{Deserialize, Serialize};
-use crate::{get_env_var, Publish};
+use crate::{get_env_var, Publish, Subscribe, Subscription};
 
-use super::AMQPCLIENT;
+use super::{subscription::AmqpSubscription, AMQPCLIENT};
 
 #[cfg(feature = "amqp")]
 pub struct AMQPClient {
-    connection: Connection,
+    pub connection: Connection,
     channel: Channel,
-    pub topics: HashMap<
+    pub queues: HashMap<
         String,
-        Arc<Mutex<HashMap<uuid::Uuid, Box<dyn FnMut(dyn AsyncConsumer) -> () + Send + 'static>>>>,
+        Arc<Mutex<HashMap<uuid::Uuid, Box<dyn FnMut(&str) -> () + Send + 'static>>>>,
     >,
 }
 
@@ -48,7 +48,7 @@ impl AMQPClient {
         Self {
             channel,
             connection,
-            topics: HashMap::new(),
+            queues: HashMap::new(),
         }
     }
 
@@ -59,30 +59,97 @@ impl AMQPClient {
 }
 
 #[derive(Serialize, Deserialize)]
-struct TestEvent {
-    message: String,
+pub struct TestEvent {
+    pub message: String,
 }
 
+// Implement the `Publish` trait for `TestEvent`
 #[async_trait::async_trait]
 impl Publish for TestEvent {
-    fn publish(&self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn publish(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let exchange_name = format!("events.{}", std::any::type_name::<Self>());
         let routing_key = "meshpulse.events";
         let payload = serde_json::to_string(&self).unwrap();
-        let channel = &AMQPCLIENT.read().unwrap().channel;
+        let args = BasicPublishArguments::new(&exchange_name, routing_key);
 
-        // Create a new Tokio runtime to block on the async call
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Clone the channel outside of the lock scope to avoid holding the lock during `.await`
+        let channel = {
+            let client_guard = AMQPCLIENT.read().unwrap(); // Acquire the read lock
+            client_guard.channel.clone()  // Clone the channel (assuming `channel` implements `Clone`)
+        };
 
-        // Run the async `basic_publish` function in the blocking runtime
-        rt.block_on(async {
-            let args = BasicPublishArguments::new(&exchange_name, routing_key);
-            channel
-                .basic_publish(BasicProperties::default(), payload.into(), args)
-                .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-        }).unwrap();
+        // Perform the async `basic_publish` operation
+        channel
+            .basic_publish(BasicProperties::default(), payload.into(), args)
+            .await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+
         Ok(())
+    }
+}
+
+impl Subscribe for TestEvent {
+    type Event = Self;
+    fn subscribe(mut callback: impl FnMut(Self) -> () + Send + 'static) -> Result<impl Subscription, Box<dyn std::error::Error>> {
+
+        let exchange_name = format!("events.{}", std::any::type_name::<Self>());
+        let routing_key = format!("events/{}", std::any::type_name::<Self>());
+
+        // First, handle the immutable borrow for accessing the channel
+        let queue_name = {
+            let amqp_client = AMQPCLIENT.read().unwrap(); // Immutable borrow
+            let channel = &amqp_client.channel;
+
+            // Declare a server-named transient queue and bind it
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                let (queue_name, _, _) = channel
+                    .queue_declare(QueueDeclareArguments::default())
+                    .await
+                    .unwrap()
+                    .unwrap();
+
+                channel
+                    .queue_bind(QueueBindArguments::new(
+                            &queue_name,
+                            &exchange_name,
+                            routing_key.as_str(),
+                            ))
+                    .await
+                    .unwrap();
+
+                // Start consumer, auto-ack
+                let args = BasicConsumeArguments::new(&queue_name, "basic_consumer")
+                    .manual_ack(false)
+                    .finish();
+
+                channel
+                    .basic_consume(AMQPConsumer {}, args)
+                    .await
+                    .unwrap();
+
+                queue_name // Return queue_name from the block
+            })
+        };
+
+        let mut amqp_client = AMQPCLIENT.write().unwrap(); // Mutable borrow
+        let subscription = AmqpSubscription {
+            queue: queue_name,
+            channel: amqp_client.channel.clone(),
+            id: uuid::Uuid::new_v4(),
+        };
+
+        let topic = amqp_client.queues
+            .entry(subscription.queue.clone())
+            .or_insert_with(|| std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())));
+
+        let mut topic = topic.lock().unwrap();
+        topic.insert(subscription.id, Box::new(move |msg: &str| {
+            let event: Self = serde_json::from_str(msg).unwrap();
+            callback(event);
+        }));
+
+        Ok(subscription)
     }
 }
 
@@ -92,18 +159,27 @@ struct AMQPConsumer;
 impl AsyncConsumer for AMQPConsumer {
     async fn consume(
         &mut self,
-        channel: &Channel,
+        _channel: &Channel,
         deliver: Deliver,
         _basic_properties: BasicProperties,
         content: Vec<u8>,
     ) {
 
         let string = String::from_utf8(content).expect("Our bytes should be valid utf8");
-        println!("Received message: {}", string);
-           channel
-                .basic_ack(BasicAckArguments::new(deliver.delivery_tag(), true))
-                .await
-                .unwrap();
+        let queue = deliver.routing_key();
+        let amqp_client = AMQPCLIENT.read().unwrap();
+        let topic = amqp_client.queues.get(queue);
+        match topic {
+            Some(topic) => {
+                let mut topic = topic.lock().unwrap();
+                for (_, callback) in topic.iter_mut() {
+                    callback(string.as_str());
+                }
+            }
+            None => {
+                println!("No topic found for: {}", queue);
+            }
+        }
     }
 }
 

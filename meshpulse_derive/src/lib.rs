@@ -10,19 +10,23 @@ pub fn event_macro(input: TokenStream) -> TokenStream {
     let struct_name = &input.ident;
 
     let expanded = quote! {
+        #[async_trait::async_trait]
         impl Publish for #struct_name {
-            fn publish(&self) -> Result<(), Box<dyn std::error::Error>> {
-                // the topic is the name of the struct, use reflection to get it
-                let topic = format!("events/{}", std::any::type_name::<Self>());
-                let payload = serde_json::to_string(&self).unwrap();
-                let msg = paho_mqtt::MessageBuilder::new()
-                    .topic(topic)
-                    .payload(payload)
-                    .qos(QOS)
-                    .finalize();
-                let cli = &MQTTCLIENT.read().unwrap().client;
-                cli.publish(msg).unwrap();
-                Ok(())
+            async fn publish(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+                // Synchronous work wrapped in an async block
+                tokio::task::block_in_place(|| {
+                    // the topic is the name of the struct, use reflection to get it
+                    let topic = format!("events/{}", std::any::type_name::<Self>());
+                    let payload = serde_json::to_string(&self).unwrap();
+                    let msg = paho_mqtt::MessageBuilder::new()
+                        .topic(topic)
+                        .payload(payload)
+                        .qos(QOS)
+                        .finalize();
+                    let cli = &MQTTCLIENT.read().unwrap().client;
+                    cli.publish(msg).unwrap();
+                    Ok(())
+                })
             }
         }
 

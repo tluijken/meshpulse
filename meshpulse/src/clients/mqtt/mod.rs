@@ -37,18 +37,18 @@ mod tests {
         message: String,
     }
 
-    #[test]
-    fn test_publish() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_publish() {
         setup_enviroment_variables();
         let event = TestEvent {
             message: "hello".to_string(),
         };
-        let result = event.publish();
+        let result = event.publish().await;
         assert_eq!(result.is_ok(), true);
     }
 
-    #[test]
-    fn test_subscribe() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_subscribe() {
         setup_enviroment_variables();
         // Setup: Prepare a shared counter for event reception
         let received = Arc::new(Mutex::new(0));
@@ -82,6 +82,7 @@ mod tests {
             message: "World".to_string(),
         }
         .publish()
+        .await
         .expect("Event publication failed");
 
         // wait for the event to be received
@@ -95,8 +96,8 @@ mod tests {
         assert_eq!(received_count, 1, "Expected exactly 1 event to be received");
     }
 
-    #[test]
-    fn test_double_subscribe() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_double_subscribe() {
         setup_enviroment_variables();
 
         let received_1 = Arc::new(Mutex::new(0));
@@ -140,6 +141,7 @@ mod tests {
             message: "Double".to_string(),
         }
         .publish()
+        .await
         .expect("Event publication failed");
         //
         std::thread::sleep(WAIT_DURATION);
@@ -176,6 +178,7 @@ mod tests {
             message: "Double".to_string(),
         }
         .publish()
+        .await
         .expect("Event publication failed");
 
         std::thread::sleep(WAIT_DURATION);
