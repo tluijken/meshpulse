@@ -7,5 +7,5 @@ services:
     environment:
      - "RABBITMQ_DEFAULT_USER=test"
      - "RABBITMQ_DEFAULT_PASS=test"
-     - "RABBITMQ_DEFAULT_VHOST='vhost'"
+     - "RABBITMQ_DEFAULT_VHOST=/"
     restart: unless-stopped

@@ -28,7 +28,7 @@ pub mod clients;
 /// assert_eq!(result.is_ok(), true);
 /// ```
 pub trait Publish {
-    async fn publish(&self) -> Result<(), Box<dyn std::error::Error>>;
+    fn publish(&self) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 /// This trait is used to subscribe to events using meshpulse

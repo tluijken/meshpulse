@@ -63,21 +63,25 @@ struct TestEvent {
     message: String,
 }
 
+#[async_trait::async_trait]
 impl Publish for TestEvent {
-    async fn publish(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // the topic is the name of the struct, use reflection to get it
+    fn publish(&self) -> Result<(), Box<dyn std::error::Error>> {
         let exchange_name = format!("events.{}", std::any::type_name::<Self>());
         let routing_key = "meshpulse.events";
         let payload = serde_json::to_string(&self).unwrap();
         let channel = &AMQPCLIENT.read().unwrap().channel;
 
-        // create arguments for basic_publish
-        let args = BasicPublishArguments::new(&exchange_name, routing_key);
+        // Create a new Tokio runtime to block on the async call
+        let rt = tokio::runtime::Runtime::new().unwrap();
 
-        channel
-            .basic_publish(BasicProperties::default(), payload.into(), args)
-            .await
-            .unwrap();
+        // Run the async `basic_publish` function in the blocking runtime
+        rt.block_on(async {
+            let args = BasicPublishArguments::new(&exchange_name, routing_key);
+            channel
+                .basic_publish(BasicProperties::default(), payload.into(), args)
+                .await
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        }).unwrap();
         Ok(())
     }
 }

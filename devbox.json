@@ -17,6 +17,7 @@
             "export RUSTUP_HOME=$rustupHomeDir",
             "export LIBRARY_PATH=$LIBRARY_PATH:\"$projectDir/nix/profile/default/lib\"",
             "rustup default stable",
+            "rustup component add rust-analyzer",
         ],
         "scripts": {
             "test": "cargo test -- --show-output",
