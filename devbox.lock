@@ -13,6 +13,34 @@
       "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#gcc",
       "source": "nixpkg"
     },
+    "mqttx@latest": {
+      "last_modified": "2024-10-06T12:21:13Z",
+      "resolved": "github:NixOS/nixpkgs/50b3bd3fed0442bcbf7f58355e990da84af1749d#mqttx",
+      "source": "devbox-search",
+      "version": "1.10.1",
+      "systems": {
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/az2f672m7x8hrgyylknjspxhbjlpiak2-mqttx-1.10.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/az2f672m7x8hrgyylknjspxhbjlpiak2-mqttx-1.10.1"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/9dy85h0f2g7d3m0sy80qnlxiilfjxys1-mqttx-1.10.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/9dy85h0f2g7d3m0sy80qnlxiilfjxys1-mqttx-1.10.1"
+        }
+      }
+    },
     "openssl": {
       "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#openssl",
       "source": "nixpkg"
